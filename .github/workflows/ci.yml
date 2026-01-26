@@ -1,0 +1,36 @@
+# Test this workflow locally with Act:
+# 1. Install: brew install act
+# 2. Run: act -W .github/workflows/ci.yml
+
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Use Docker Compose v2 (recommended on ubuntu-latest)
+      - name: Build Docker containers
+        run: docker compose build
+
+      - name: Run tests in Docker (generate HTML report)
+        run: |
+          mkdir -p artifacts
+          docker compose run --rm \
+            -v "${{ github.workspace }}/artifacts:/artifacts" \
+            test sh -lc "pytest --html=/artifacts/report.html --self-contained-html"
+
+      - name: Upload pytest report
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-report
+          path: artifacts/report.html

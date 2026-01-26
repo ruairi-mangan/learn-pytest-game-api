@@ -55,6 +55,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+tests/__pycache__
 
 # Translations
 *.mo
@@ -209,3 +210,4 @@ cython_debug/
 .idea/**/
 
 report.html
+.DS_Store

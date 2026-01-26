@@ -1,3 +1,6 @@
+# Test this workflow locally with Act:
+# 1. Install: brew install act
+# 2. Run: act -W .github/workflows/ci.yml
 
 name: CI
 

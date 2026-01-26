@@ -8,7 +8,7 @@
 ## Background
 
 This project provides a suite of tests for a mocked game API, demonstrating how to use pytest and related libraries to validate endpoints, 
-authentication, headers, and various HTTP methods. It includes examples of response time measurement, flaky test check, and data validation to 
+authentication, headers, and various HTTP methods. It includes examples of response time measurement, flaky tests, and data validation to 
 showcase best practices in API testing. The goal is to help readers learn practical pytest techniques for robust and comprehensive API test coverage.
 
 The main files are:
@@ -48,7 +48,8 @@ $ docker-compose build
 $ docker-compose run test sh
 ```
 
-This opens a shell in the Docker container. You can then run:
+
+**This opens a shell in the Docker container. You can then run:**
 
 
   *Run all tests:*

@@ -18,6 +18,7 @@ patterns. Everything runs in Docker, both locally and in GitHub Actions.
 api/
   games_data.py        Seed catalogue: 14 real games with approximate sales figures
   mockapi.py           Flask app factory, validation, and an async "live stats" function
+  client.py            HTTP client for the API: custom exceptions, retries, logging
 tests/
   conftest.py          Shared fixtures: app, client, auth_headers, make_game
   unit/                Fast, isolated tests using Flask's in-process test client
@@ -91,6 +92,14 @@ curl -H "Authorization: Bearer mysecrettoken" "localhost:5000/games?platform=swi
 | Custom markers + `--strict-markers` | `integration` marker in `pyproject.toml` |
 | Skipping tests when the environment isn't available | `base_url` fixture |
 | Retrying flaky tests (`pytest-rerunfailures`) | `test_response_time_within_sla` |
+| `pytest.raises`: `match=`, `exc_info`, subclasses, `__cause__` | `tests/unit/test_errors_and_logging.py`, `test_unknown_game_raises_not_found` |
+| `caplog`: `set_level`, `at_level`, `records`, `record_tuples`, `messages` | `test_rejected_request_logs_a_warning`, `test_retries_are_logged` |
+| Mocking with `pytest-mock`: `mocker.patch`, `patch.object`, `Mock(spec=...)` | `tests/unit/test_client_mocking.py` |
+| `side_effect` for failure sequences, asserting calls | `test_retries_until_the_request_succeeds`, `test_gives_up_after_max_retries` |
+| Patching `time.sleep` so retry tests run instantly | `sleep` fixture |
+| Spies (`mocker.spy`) | `test_spy_records_calls_but_keeps_real_behaviour` |
+| `AsyncMock` for async functions | `test_most_played_now_with_async_mock` |
+| The same client tested with mocks and against the real server | `test_client_against_live_api` |
 | Coverage and HTML reports | `pytest-cov`, `pytest-html` |
 
 ## Running the tests

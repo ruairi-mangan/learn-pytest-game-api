@@ -1,10 +1,13 @@
 """End-to-end tests against the mock API running in its own container."""
 
 import logging
+import os
 import time
 
 import pytest
 import requests
+
+from api.client import AuthenticationError, GameNotFoundError, GamesClient
 
 pytestmark = pytest.mark.integration
 
@@ -47,3 +50,22 @@ def test_created_game_can_be_fetched(api, base_url, created_game):
 
 def test_unauthenticated_request_is_rejected(base_url):
     assert requests.get(f"{base_url}/games", timeout=5).status_code == 401
+
+
+# --- The same GamesClient as the mocking tests, against the real server -----
+
+
+def test_client_against_live_api(base_url):
+    client = GamesClient(base_url, os.environ.get("API_TOKEN", "mysecrettoken"))
+
+    assert client.get_game(1)["title"] == "Minecraft"
+    assert client.best_seller()["title"] == "Minecraft"
+    with pytest.raises(GameNotFoundError):
+        client.get_game(999_999)
+
+
+def test_client_with_wrong_token_raises(base_url):
+    client = GamesClient(base_url, "wrong-token")
+
+    with pytest.raises(AuthenticationError):
+        client.list_games()

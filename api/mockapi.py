@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import logging
 import os
 import random
 from datetime import UTC, datetime
@@ -27,6 +28,8 @@ from flask import Blueprint, Flask, current_app, jsonify, request
 from werkzeug.exceptions import HTTPException
 
 from api.games_data import ESRB_RATINGS, LIVE_PLAYER_RANGES, SEED_GAMES
+
+log = logging.getLogger(__name__)
 
 API_VERSION = "2.0"
 DEFAULT_TOKEN = "mysecrettoken"
@@ -139,6 +142,7 @@ def require_token(view):
     def wrapper(*args, **kwargs):
         expected = f"Bearer {current_app.config['API_TOKEN']}"
         if request.headers.get("Authorization") != expected:
+            log.warning("Rejected %s %s: bad or missing token", request.method, request.path)
             raise ApiError(401, "Unauthorized")
         return view(*args, **kwargs)
 
@@ -222,6 +226,7 @@ def add_games():
         raise ApiError(400, "Validation failed", errors)
 
     added = [store().add(game) for game in cleaned]
+    log.info("Added %d game(s): %s", len(added), ", ".join(g["title"] for g in added))
     return jsonify({"added": added}), 201
 
 
@@ -236,6 +241,8 @@ def delete_games():
     deleted, not_found = [], []
     for title in titles:
         (deleted if store().delete_by_title(title) else not_found).append(title)
+    if deleted:
+        log.info("Deleted %d game(s): %s", len(deleted), ", ".join(deleted))
     return jsonify({"deleted": deleted, "not_found": not_found})
 
 

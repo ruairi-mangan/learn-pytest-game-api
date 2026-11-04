@@ -10,7 +10,7 @@ readme = "README.md"
 license = "MIT"
 authors = [{ name = "Ruairi Mangan" }]
 requires-python = ">=3.11"
-dependencies = ["flask>=3.0"]
+dependencies = ["flask>=3.0", "requests>=2.32"]
 
 [project.optional-dependencies]
 test = [
@@ -18,8 +18,8 @@ test = [
     "pytest-asyncio>=0.24",
     "pytest-cov>=5.0",
     "pytest-html>=4.1",
+    "pytest-mock>=3.14",
     "pytest-rerunfailures>=14.0",
-    "requests>=2.32",
     "ruff>=0.6",
 ]
 

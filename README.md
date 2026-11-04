@@ -1,101 +1,161 @@
-# pytest_docker_example
+# pytest-docker-mock-app
 
-- [Background](#background)
-- [Prerequisites](#prerequisites)
-- [Usage](#usage)
+[![CI](https://github.com/ruairi-mangan/pytest-docker-mock-app/actions/workflows/ci.yml/badge.svg)](https://github.com/ruairi-mangan/pytest-docker-mock-app/actions/workflows/ci.yml)
+
+A practice project for learning **pytest**. It contains a small Flask API that
+serves a mock video game catalogue, plus a test suite that shows common pytest
+patterns. Everything runs in Docker, both locally and in GitHub Actions.
+
+- [What's inside](#whats-inside)
+- [The mock API](#the-mock-api)
+- [pytest techniques demonstrated](#pytest-techniques-demonstrated)
+- [Running the tests](#running-the-tests)
 - [Debugging](#debugging)
 
-## Background
+## What's inside
 
-This project provides a suite of tests for a mocked game API, demonstrating how to use pytest and related libraries to validate endpoints, 
-authentication, headers, and various HTTP methods. It includes examples of response time measurement, flaky tests, and data validation to 
-showcase best practices in API testing. The goal is to help readers learn practical pytest techniques for robust and comprehensive API test coverage.
-
-The main files are:
-
-**mockapi.py** implements a Flask API with in-memory mock data for computer games.
-Endpoints:
-- GET /games: Returns the list of games if the correct Authorization header is present, adds a custom API version header.
-- POST /games: Adds new games from a JSON array in the request body.
-- DELETE /games: Deletes games matching names from a JSON array in the request body.
-- get_games_async(): Async function simulating a delayed response with random game data.
-- JSON helper ensuring that incoming JSON is an array.
-
-**test_games.py**
-contains tests for the Flask API endpoints.
-
-- GET /games: Checks for correct response, authorization handling, and presence of custom headers.
-- POST /games: Verifies adding new games and input validation.
-- DELETE /games: Ensures games are deleted as expected.
-- Header checks: Confirms required headers (like Authorization) are enforced.
-- Retries/Flakiness: May use pytest features (like @pytest.mark.flaky) to handle or simulate flaky endpoints and test retry logic.
-
-Uses pytest and Flask’s test client for endpoint interaction and assertions.
-These files together provide a mock API and a comprehensive test suite covering endpoint functionality, input validation, header requirements, and robustness against flaky behavior.
-## Prerequisites
-
-**Install Docker**
-
-- All dependencies for these tests are included in a Docker container.
-- Python 3.7.6 was used during curation of this project. The Docker image uses Python 3.7.
-
-## Usage
-
-**To start a shell:**
-
-```bash
-$ docker-compose build
-$ docker-compose run test sh
+```
+api/
+  games_data.py        Seed catalogue: 14 real games with approximate sales figures
+  mockapi.py           Flask app factory, validation, and an async "live stats" function
+tests/
+  conftest.py          Shared fixtures: app, client, auth_headers, make_game
+  unit/                Fast, isolated tests using Flask's in-process test client
+  integration/         HTTP tests against the mockapi container (needs API_BASE_URL)
+Dockerfile             Python 3.13 image that runs the API and the tests
+docker-compose.yaml    mockapi service (with healthcheck) + test service
+pyproject.toml         Dependencies plus pytest, coverage, and ruff settings
 ```
 
+## The mock API
 
-**This opens a shell in the Docker container. You can then run:**
+Each game record looks like this:
 
+```json
+{
+  "id": 4,
+  "title": "Mario Kart 8 Deluxe",
+  "developer": "Nintendo EPD",
+  "publisher": "Nintendo",
+  "release_year": 2017,
+  "genre": "Racing",
+  "platforms": ["Switch"],
+  "esrb_rating": "E",
+  "price_usd": 59.99,
+  "units_sold_millions": 68.0,
+  "in_stock": true
+}
+```
 
-  *Run all tests:*
-    
-  ``` bash
-  $ pytest 
-  ```
+Sales figures are approximate lifetime units, rounded from publicly reported
+numbers. They are realistic test data, not an authoritative source.
 
-  *Run tests in files matching a keyword:*
-    
-  ``` bash
-  $ pytest -k <test_file_name>
-  ```
+| Method   | Path           | Description                                                        |
+|----------|----------------|--------------------------------------------------------------------|
+| `GET`    | `/health`      | Liveness check (no auth)                                           |
+| `GET`    | `/games`       | List games. Optional filters: `?platform=`, `?genre=`, `?in_stock=` |
+| `GET`    | `/games/<id>`  | Get one game, or `404` if not found                                |
+| `POST`   | `/games`       | Add games from a JSON array. Returns `201`, `400` (invalid) or `409` (duplicate title) |
+| `DELETE` | `/games`       | Delete by title: `[{"title": "..."}]`. Returns `deleted` and `not_found` lists |
 
-  *Run tests with verbose output and all variables printed:*
+Every `/games` request needs `Authorization: Bearer mysecrettoken`. You can
+change the token with the `API_TOKEN` environment variable. Every response
+includes an `X-API-Version` header.
 
-  ``` bash
-  $ pytest -vvl
-  ```
+`get_live_player_counts_async()` simulates a slow call to a live-stats service.
+It returns concurrent Steam player counts that are random within realistic
+ranges. This makes it useful for practising tests on data that changes every
+time you read it.
 
-  *Check test coverage:*
+Try the API by hand:
 
-  ``` bash
-  $ pytest —cov
-  ```
+```bash
+docker compose up mockapi
+curl -H "Authorization: Bearer mysecrettoken" "localhost:5000/games?platform=switch&in_stock=true"
+```
 
-**To exit the shell**
-  ```bash
-  $ exit
-  ```
+## pytest techniques demonstrated
 
+| Technique | Where |
+|-----------|-------|
+| Fixtures and fixture composition (`client` depends on `app`) | `tests/conftest.py` |
+| Test isolation (a fresh app per test, no shared state) | `app` fixture, `test_each_test_gets_fresh_data` |
+| Factory fixtures | `make_game` |
+| `yield` fixtures with teardown | `created_game` in `tests/integration/conftest.py` |
+| Session-scoped fixtures | `base_url`, `api` |
+| `@pytest.mark.parametrize`, stacked, with custom `ids` | `test_endpoints_reject_bad_credentials`, `test_add_game_validation` |
+| Parametrizing over data | `test_every_game_matches_schema` |
+| `monkeypatch` for environment variables | `test_token_can_be_set_by_environment_variable` |
+| Async tests with `pytest-asyncio` | `tests/unit/test_live_players.py` |
+| Testing random data with range checks and seeded RNGs | `test_player_counts_stay_within_range`, `test_seeded_rng_gives_repeatable_results` |
+| Custom markers + `--strict-markers` | `integration` marker in `pyproject.toml` |
+| Skipping tests when the environment isn't available | `base_url` fixture |
+| Retrying flaky tests (`pytest-rerunfailures`) | `test_response_time_within_sla` |
+| Coverage and HTML reports | `pytest-cov`, `pytest-html` |
+
+## Running the tests
+
+### With Docker (recommended)
+
+```bash
+docker compose build
+docker compose run --rm test pytest
+```
+
+Or open a shell in the test container and run commands from there:
+
+```bash
+docker compose run --rm test sh
+```
+
+```bash
+pytest                                  # everything
+pytest tests/unit                       # just the fast unit tests
+pytest -m integration                   # only tests marked "integration"
+pytest -m "not integration"             # everything except integration tests
+pytest -k validation                    # tests whose name matches "validation"
+pytest -vv -l                           # verbose output, show local variables on failure
+pytest --cov --cov-report=term-missing  # coverage report
+pytest --html=artifacts/report.html --self-contained-html
+ruff check . && ruff format --check .   # lint
+exit
+```
+
+When you're done, stop the API container with `docker compose down`.
+
+### Without Docker
+
+Requires Python 3.11+. The integration tests are skipped unless the API is running.
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[test]"
+pytest
+```
+
+To run the integration tests too, start the API and point the tests at it:
+
+```bash
+docker compose up -d mockapi
+API_BASE_URL=http://localhost:5000 pytest
+```
+
+### CI
+
+GitHub Actions (`.github/workflows/ci.yml`) builds the images, runs `ruff`, then
+runs the full suite with coverage. The HTML report is uploaded as the
+`pytest-report` artifact.
 
 ## Debugging
 
-1. If you scroll up `(ctrl + fn)` in the debug output when running `pytest -vvl`
-    or viewing test errors, your cursor may freeze in the Docker shell. 
-    Press `q` to return to entry mode.
-
-2. To debug code, add one of the following to your code to enter the pdb debugger during pytest runs:
-   * `breakpoint()`
-   * `import pdb; pdb.set_trace()`
-
-3. An example of commands when using breakpoint:
-    ```bash
-    $ $ type(data).  # Check type
-    $ data[0].       # Get first row
-    $ data[0]['Name'] # Get first row value for column name
-    $ isinstance(data[0]['Name'],str) # Check if first row value name is a string
-    ```
+- Add `breakpoint()` anywhere in a test or in the app, then run
+  `pytest -s` to stop in the `pdb` debugger. Useful commands:
+  ```
+  p response.get_json()   # print a value
+  pp games[0]             # pretty-print
+  type(games)             # inspect a type
+  n / s / c / q           # next line / step into / continue / quit
+  ```
+- `pytest --pdb` opens the debugger automatically when a test fails.
+- `pytest --lf` re-runs only the tests that failed last time.
+- If your terminal stops responding after scrolling in the Docker shell, press `q`.

@@ -1,16 +1,18 @@
-FROM python:3.7.6-buster
+FROM python:3.13-slim
 
-RUN mkdir /pytest_mount/
-RUN ls -ltr
-COPY api/mockapi.py /pytest_mount/
-COPY ./test-requirements.txt /pytest_mount/
-COPY ./setup.py ./setup.py
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
-RUN pip install --upgrade pip
-RUN pip install -e .
-RUN pip3 install -r /pytest_mount/test-requirements.txt
+WORKDIR /app
 
-WORKDIR /pytest_mount/
+# Install dependencies first, so Docker can cache this layer between code changes.
+COPY pyproject.toml README.md LICENSE ./
+COPY api ./api
+RUN pip install -e ".[test]"
 
-CMD "pytest"
-ENV PYTHONDONTWRITEBYTECODE=true
+COPY tests ./tests
+
+EXPOSE 5000
+CMD ["flask", "--app", "api.mockapi:create_app()", "run", "--host", "0.0.0.0", "--port", "5000"]

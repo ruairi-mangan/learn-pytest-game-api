@@ -1,6 +1,6 @@
-# Test this workflow locally with Act:
-# 1. Install: brew install act
-# 2. Run: act -W .github/workflows/ci.yml
+# Run this workflow locally with act (https://github.com/nektos/act):
+#   brew install act
+#   act -W .github/workflows/ci.yml
 
 name: CI
 
@@ -8,7 +8,7 @@ on:
   push:
     branches: ["main"]
   pull_request:
-    branches: ["main"]
+  workflow_dispatch:
 
 jobs:
   test:
@@ -18,19 +18,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Use Docker Compose v2 (recommended on ubuntu-latest)
-      - name: Build Docker containers
+      - name: Build images
         run: docker compose build
 
-      - name: Run tests in Docker (generate HTML report)
+      - name: Lint
         run: |
-          mkdir -p artifacts
-          docker compose run --rm \
-            -v "${{ github.workspace }}/artifacts:/artifacts" \
-            test sh -lc "pytest --html=/artifacts/report.html --self-contained-html"
+          docker compose run --rm -T --no-deps test ruff check .
+          docker compose run --rm -T --no-deps test ruff format --check .
+
+      - name: Run tests
+        run: >
+          docker compose run --rm -T test
+          pytest --cov --cov-report=term-missing
+          --html=artifacts/report.html --self-contained-html
 
       - name: Upload pytest report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pytest-report
           path: artifacts/report.html
+
+      - name: Stop containers
+        if: always()
+        run: docker compose down

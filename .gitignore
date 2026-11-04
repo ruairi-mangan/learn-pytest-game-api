@@ -212,3 +212,5 @@ cython_debug/
 
 report.html
 .DS_Store
+# pytest-html / coverage output
+artifacts/

@@ -1,6 +1,6 @@
-# pytest-docker-mock-app
+# learn-pytest-game-api
 
-[![CI](https://github.com/ruairi-mangan/pytest-docker-mock-app/actions/workflows/ci.yml/badge.svg)](https://github.com/ruairi-mangan/pytest-docker-mock-app/actions/workflows/ci.yml)
+[![CI](https://github.com/ruairi-mangan/learn-pytest-game-api/actions/workflows/ci.yml/badge.svg)](https://github.com/ruairi-mangan/learn-pytest-game-api/actions/workflows/ci.yml)
 
 A practice project for learning **pytest**. It contains a small Flask API that
 serves a mock video game catalogue, plus a test suite that shows common pytest

@@ -1,3 +1,5 @@
+name: learn-pytest-game-api
+
 services:
   mockapi:
     build: .

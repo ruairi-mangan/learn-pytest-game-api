@@ -3,7 +3,7 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pytest-docker-mock-app"
+name = "learn-pytest-game-api"
 version = "2.0.0"
 description = "Learning project: testing a mock video game API with pytest inside Docker."
 readme = "README.md"
